@@ -11,8 +11,6 @@ $arrBill = array(500, 200, 100, 50, 20, 10, 5);
 $cash = verification($arrBill, $countBill);
 
 if ($cash) {
-//    echo "Что-то выдали.";
-//    echo $cash;
     echo "Сумма:". $cash."<br>";
     echo "Число купюр:" . giveCash($arrBill, $countBill, $cash);
 }
@@ -53,7 +51,6 @@ function maxSumCash($arrBill, $countBill)
         $maxCash += $value * $countBill;
     }
 
-//    echo $maxCash;
     return $maxCash;
 }
 
