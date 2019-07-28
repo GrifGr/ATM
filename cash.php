@@ -6,16 +6,35 @@
 </head>
 <body>
 <?php
-$countBill = 1000;
-$arrBill = array(500, 200, 100, 50, 20, 10, 5);
-$cash = verification($arrBill, $countBill);
+include 'myFunction.php';
 
-if ($cash) {
-    echo "Сумма:". $cash."<br>";
-    echo "Число купюр:" . giveCash($arrBill, $countBill, $cash);
+if (file_exists("data.json")) {
+    $handle = fopen('data.json', 'rb');
+    $str = fread($handle, filesize('data.json'));
+    fclose($handle);
+    $data = json_decode($str,true);
+
+    $cash = verification($data);
+
+    if ($cash) {
+
+        echo "Сумма:". $cash."<br>";
+        echo "Число купюр:" . giveCash($data,  $cash)["text"];
+
+        include "table.php";
+        printTable($data);
+
+        saveData($data, "data");
+    }
+
+    echo "<br><a href=\"index.php\">Вернуться к выбору суммы</a>";
+}
+else {
+    echo "Выдача невозможна: в банкомате нет денег. <br>";
+    echo "Перейдите по  <a href=\"addCash.php\">ссылке</a> для внесения денег в банкомат";
 }
 
-function verification($arrBill, $countBill)
+function verification($data)
 {
     if (isset($_POST['cash']) && $_POST['cash']) {
         $cash = $_POST['cash'];
@@ -33,55 +52,75 @@ function verification($arrBill, $countBill)
         echo "Выдача невозможна: введена сумма не кратная 5.";
         return false;
     }
+    
+    if (maxSumCash($data) == 0) {
+        echo "Выдача невозможна: в банкомате нет денег. <br>";
+        echo "Перейдите по  <a href=\"addCash.php\">ссылке</a> для внесения денег в банкомат";
+        return false;
+    }
 
-    if ($cash > maxSumCash($arrBill, $countBill)) {
+    if ($cash > maxSumCash($data)) {
         echo "Выдача невозможна: введена сумма больше чем есть в банкомате.";
         return false;
     }
 
+
+
+    $sumDiff = giveCash($data,  $cash)["sumDiff"];
+    if ($sumDiff > 0) {
+        echo "Выдача невозможна: наявными купюрами нет возможности выдать указанную сумму <br>";
+        echo "Возможна выдача " . ($cash - $sumDiff) . " грн";
+        return false;
+    }
+
+
     return $cash;
 }
 
-function maxSumCash($arrBill, $countBill)
+function maxSumCash($data)
 {
     $maxCash = 0;
 
-
-    foreach ($arrBill as $value) {
-        $maxCash += $value * $countBill;
+    foreach ($data as $bill => $countBill) {
+        $maxCash += $bill * $countBill;
     }
 
     return $maxCash;
 }
 
-function giveCash($arrBill, $countBill, $cash)
+function giveCash(&$data,  $cash)
 {
     $textCash = "";
     $balance = $cash;
+    foreach ($data as $bill => $countBill) {
+        $countBillGive = calcCash($bill, $countBill, $balance);
 
-    foreach ($arrBill as $value) {
-        $arrCash = calcCash($value, $countBill, $balance);
-        $textCash = $textCash . (strlen($arrCash[0])>0?" ":"").$arrCash[0];
-        $balance -= $arrCash[1];
+        If ($countBillGive>0){
+            $data[$bill] = ($countBill - $countBillGive);
+
+            $textCash = $textCash . (strlen($textCash)>0?" ":"").$countBillGive . "x" . $bill;
+            $balance -= ($countBillGive*$bill);
+        }
     }
 
-    return $textCash;
+    return array("text"=>$textCash, "sumDiff"=>$balance);
 }
 
-function calcCash($value, $countBill, $balance)
+function calcCash($bill, $countBill, $balance)
 {
-    if ($value > $balance) {
-        return array("", 0);
+
+    if ($bill > $balance) {
+        return 0;
     }
 
-    $countBillResult = intdiv ($balance, $value)>$countBill?$countBill:intdiv ($balance, $value);
+    $countBillResult = intdiv ($balance, $bill)>$countBill?$countBill:intdiv ($balance, $bill);
 
-    return array($countBillResult . "x" . $value, $countBillResult*$value);
+//    return array($countBillResult . "x" . $value, $countBillResult*$value);
+//    echo $countBillResult;
+    return $countBillResult;
 }
 
 ?>
-<form action="http://atm/">
-    <button>Вернуться к выбору суммы</button>
-</form>
+
 </body>
 </html>
